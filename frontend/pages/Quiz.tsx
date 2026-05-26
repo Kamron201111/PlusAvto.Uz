@@ -18,7 +18,7 @@ const Quiz: React.FC = () => {
   const ticketId = params.get('ticketId');
   const interimId = params.get('interimId');
   const vazifaId = params.get('vazifaId');
-  const countParam = parseInt(params.get('count') || '20');
+  const countParam = params.get('count');
   const examType = params.get('examType');
 
   const isAdmin = user?.role === 'admin';
@@ -70,9 +70,24 @@ const Quiz: React.FC = () => {
         } else if (mode === 'favorites') {
           qs = await favoritesAPI.list();
           titleText = t('my_favorite');
-        } else if (mode === 'random' || mode === 'final') {
-          qs = await questionsAPI.random(countParam);
-          titleText = mode === 'final' ? t('exam_topshirish') : t('random_test');
+        } else if (mode === 'final') {
+          // Final exam — count param bo'lsa shuncha (20/50), bo'lmasa default 20
+          const cnt = countParam ? parseInt(countParam) : 20;
+          qs = await questionsAPI.random(cnt);
+          titleText = t('exam_topshirish');
+        } else if (mode === 'random') {
+          // RANDOM — count bo'lmasa bazadagi HAMMA savol, chalkashtirilgan holda
+          if (countParam) {
+            qs = await questionsAPI.random(parseInt(countParam));
+          } else {
+            qs = await questionsAPI.list();
+            // Hammasini chalkashtiramiz
+            for (let i = qs.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [qs[i], qs[j]] = [qs[j], qs[i]];
+            }
+          }
+          titleText = t('random_test');
         }
         setQuestions(qs);
         setTitle(titleText);
