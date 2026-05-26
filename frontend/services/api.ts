@@ -40,6 +40,8 @@ export const authAPI = {
   updateProfile: (data: any) => api.put('/auth/profile', data).then(r => r.data.user),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put('/auth/change-password', { oldPassword, newPassword }).then(r => r.data),
+  changePhone: (password: string, newPhone: string) =>
+    api.put('/auth/change-phone', { password, newPhone }).then(r => r.data),
 };
 
 export const topicsAPI = {
