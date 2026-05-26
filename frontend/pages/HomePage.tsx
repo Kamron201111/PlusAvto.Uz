@@ -7,7 +7,6 @@ import {
   BookOpen, Ticket, Shuffle, Heart, XCircle, BarChart3,
   FileCheck, AlertCircle, Lock, ListTodo,
 } from 'lucide-react';
-import RandomCountModal from '../components/RandomCountModal';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,7 +15,6 @@ const HomePage: React.FC = () => {
   const [favCount, setFavCount] = useState(0);
   const [mistakeCount, setMistakeCount] = useState(0);
   const [wrongPercent, setWrongPercent] = useState(0);
-  const [showRandom, setShowRandom] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   const canAccess = premium || isAdmin;
@@ -78,16 +76,9 @@ const HomePage: React.FC = () => {
         <Card onClick={() => handlePremium(() => navigate('/tickets'))} icon={<Ticket size={22}/>} color="blue" label={adaptText(t('ticket_training'), lang)} locked={!canAccess}/>
         <Card onClick={() => handlePremium(() => navigate('/exams'))} icon={<FileCheck size={22}/>} color="emerald" label={adaptText(t('exam_topshirish'), lang)} locked={!canAccess}/>
         <Card onClick={() => handlePremium(() => navigate('/vazifalar'))} icon={<ListTodo size={22}/>} color="orange" label={adaptText(t('vazifa_topshirish'), lang)} locked={!canAccess}/>
-        <Card onClick={() => handlePremium(() => setShowRandom(true))} icon={<Shuffle size={22}/>} color="purple" label={adaptText(t('random_test'), lang)} locked={!canAccess}/>
+        <Card onClick={() => handlePremium(() => navigate('/quiz?mode=random'))} icon={<Shuffle size={22}/>} color="purple" label={adaptText(t('random_test'), lang)} locked={!canAccess}/>
         <Card onClick={() => navigate('/mistakes')} icon={<AlertCircle size={22}/>} color="red" label={adaptText(t('my_mistakes'), lang)}/>
       </div>
-
-      {showRandom && (
-        <RandomCountModal
-          onClose={() => setShowRandom(false)}
-          onSelect={(count) => { setShowRandom(false); navigate(`/quiz?mode=random&count=${count}`); }}
-        />
-      )}
     </div>
   );
 };
