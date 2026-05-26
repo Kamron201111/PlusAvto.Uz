@@ -125,6 +125,37 @@ app.put('/api/auth/change-password', authRequired, async (req, res) => {
   }
 });
 
+// Telefon raqamni o'zgartirish - parolni tasdiqlash bilan
+app.put('/api/auth/change-phone', authRequired, async (req, res) => {
+  try {
+    const { password, newPhone } = req.body;
+    if (!password || !newPhone) return res.status(400).json({ error: 'Maydonlar to\'liq emas' });
+    if (!/^\+998\d{9}$/.test(newPhone)) return res.status(400).json({ error: 'Telefon raqam noto\'g\'ri' });
+
+    const { rows } = await pool.query('SELECT password_hash, phone FROM users WHERE id = $1', [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+
+    const ok = await bcrypt.compare(password, rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Parol noto\'g\'ri' });
+
+    if (rows[0].phone === newPhone) return res.status(400).json({ error: 'Yangi raqam eskisi bilan bir xil' });
+
+    // Boshqa user bunday raqam bilan mavjudligini tekshirish
+    const { rows: exists } = await pool.query('SELECT id FROM users WHERE phone = $1 AND id != $2', [newPhone, req.user.id]);
+    if (exists.length) return res.status(400).json({ error: 'Bu telefon raqam allaqachon band' });
+
+    await pool.query('UPDATE users SET phone = $1 WHERE id = $2', [newPhone, req.user.id]);
+
+    // Yangilangan user va yangi token
+    const { rows: updated } = await pool.query('SELECT id, phone, name, email, telegram, avatar, role FROM users WHERE id = $1', [req.user.id]);
+    const newToken = generateToken(updated[0]);
+    res.json({ ok: true, user: updated[0], token: newToken });
+  } catch (e) {
+    console.error('change phone error:', e);
+    res.status(500).json({ error: 'Server xato' });
+  }
+});
+
 // ========== TOPICS ==========
 app.get('/api/topics', authRequired, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM topics ORDER BY number');
