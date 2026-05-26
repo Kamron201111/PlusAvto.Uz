@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../services/AppContext';
 import { authAPI, premiumAPI } from '../services/api';
 import { adaptText } from '../services/transliterate';
-import { Camera, Save, ArrowLeft, Lock, Eye, EyeOff, X } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Lock, Eye, EyeOff, X, Phone } from 'lucide-react';
 import Avatar from '../components/Avatar';
+import PhoneInput from '../components/PhoneInput';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Profile: React.FC = () => {
   const [avatar, setAvatar] = useState(user?.avatar || '');
   const [saved, setSaved] = useState(false);
   const [showPassChange, setShowPassChange] = useState(false);
+  const [showPhoneChange, setShowPhoneChange] = useState(false);
   const [premiumInfo, setPremiumInfo] = useState<any>({ active: false });
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -92,17 +94,21 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-5 flex gap-2">
-          <button onClick={handleSave} className="flex-1 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold flex items-center justify-center gap-2">
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button onClick={handleSave} className="flex-1 min-w-[180px] py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold flex items-center justify-center gap-2">
             <Save size={18}/> {saved ? '✓ Saqlandi' : adaptText(t('save'), lang)}
           </button>
           <button onClick={() => setShowPassChange(true)} className="px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold flex items-center gap-2">
             <Lock size={18}/> {lang === 'kr' ? "Парол" : "Parol"}
           </button>
+          <button onClick={() => setShowPhoneChange(true)} className="px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-bold flex items-center gap-2">
+            <Phone size={18}/> {lang === 'kr' ? "Телефон" : "Telefon"}
+          </button>
         </div>
       </div>
 
       {showPassChange && <PasswordChangeModal onClose={() => setShowPassChange(false)} lang={lang}/>}
+      {showPhoneChange && <PhoneChangeModal onClose={() => setShowPhoneChange(false)} lang={lang} currentPhone={user?.phone || ''}/>}
     </div>
   );
 };
@@ -174,6 +180,74 @@ const PasswordChangeModal: React.FC<{onClose: () => void; lang: any}> = ({onClos
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-semibold">{lang === 'kr' ? "Бекор" : "Bekor"}</button>
             <button onClick={submit} disabled={loading} className="flex-1 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold">
+              {loading ? '...' : (lang === 'kr' ? "Сақлаш" : "Saqlash")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PhoneChangeModal: React.FC<{onClose: () => void; lang: any; currentPhone: string}> = ({onClose, lang, currentPhone}) => {
+  const { setUser } = useApp();
+  const [password, setPassword] = useState('');
+  const [newPhone, setNewPhone] = useState('+998');
+  const [showPass, setShowPass] = useState(false);
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setErr('');
+    if (!password) { setErr(lang === 'kr' ? "Паролни киритинг" : "Parolni kiriting"); return; }
+    if (newPhone.length !== 13) { setErr(lang === 'kr' ? "Телефон тўлиқ эмас" : "Telefon to'liq emas"); return; }
+    if (newPhone === currentPhone) { setErr(lang === 'kr' ? "Янги рақам эскисидек" : "Yangi raqam eskisi bilan bir xil"); return; }
+
+    setLoading(true);
+    try {
+      const r = await authAPI.changePhone(password, newPhone);
+      if (r.token) localStorage.setItem('pa_token', r.token);
+      if (r.user) setUser(r.user);
+      alert(lang === 'kr' ? "Телефон рақам ўзгартирилди" : "Telefon raqam o'zgartirildi");
+      onClose();
+    } catch (e: any) {
+      setErr(e.response?.data?.error || "Xato");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+      <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-slate-800 rounded-2xl p-5 w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg">{lang === 'kr' ? "Телефонни ўзгартириш" : "Telefonni o'zgartirish"}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"><X size={18}/></button>
+        </div>
+
+        <p className="text-sm text-slate-500 mb-4">
+          {lang === 'kr' ? "Жорий рақам: " : "Joriy raqam: "}<strong>{currentPhone}</strong>
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold mb-1">{lang === 'kr' ? "Янги телефон рақам" : "Yangi telefon raqam"}</label>
+            <PhoneInput value={newPhone} onChange={setNewPhone}/>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1">{lang === 'kr' ? "Жорий парол (тасдиқлаш учун)" : "Joriy parol (tasdiqlash uchun)"}</label>
+            <div className="relative">
+              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                placeholder={lang === 'kr' ? "Паролингиз" : "Parolingiz"}
+                className="w-full px-3 py-2 pr-10 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none"/>
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+              </button>
+            </div>
+          </div>
+          {err && <div className="px-3 py-2 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-sm">{err}</div>}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-700 rounded-xl font-semibold">{lang === 'kr' ? "Бекор" : "Bekor"}</button>
+            <button onClick={submit} disabled={loading} className="flex-1 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold">
               {loading ? '...' : (lang === 'kr' ? "Сақлаш" : "Saqlash")}
             </button>
           </div>
