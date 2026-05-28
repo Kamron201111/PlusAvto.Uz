@@ -316,37 +316,36 @@ app.get('/api/questions', authRequired, async (req, res) => {
     q += ' WHERE topic_id = $1';
     params.push(topic_id);
   }
-  q += ' ORDER BY id DESC';
+  q += ' ORDER BY id ASC';
   const { rows } = await pool.query(q, params);
 
   // Ticket modes
   if (ticket_id) {
     const { rows: t } = await pool.query('SELECT * FROM tickets WHERE id = $1', [ticket_id]);
     if (t.length === 0) return res.json([]);
+    // Qo'lda tanlangan savollar - admin tanlagan tartibda (chalkashtirilmaydi)
     if (t[0].mode === 'manual' && t[0].question_ids?.length) {
-      const { rows: qs } = await pool.query('SELECT * FROM questions WHERE id = ANY($1)', [t[0].question_ids]);
-      return res.json(qs);
+      const ids = t[0].question_ids;
+      const { rows: qs } = await pool.query('SELECT * FROM questions WHERE id = ANY($1)', [ids]);
+      // Admin tanlagan tartibni saqlash
+      const ordered = ids.map(id => qs.find(q => q.id === id)).filter(Boolean);
+      return res.json(ordered);
     }
-    const all = rows;
-    for (let i = all.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [all[i], all[j]] = [all[j], all[i]];
-    }
-    return res.json(all.slice(0, 20));
+    // Auto - bazadagi hamma savol id tartibida (chalkashtirilmaydi)
+    return res.json(rows);
   }
   if (interim_id) {
     const { rows: t } = await pool.query('SELECT * FROM interims WHERE id = $1', [interim_id]);
     if (t.length === 0) return res.json([]);
+    // Qo'lda tanlangan savollar - admin tanlagan tartibda (chalkashtirilmaydi)
     if (t[0].mode === 'manual' && t[0].question_ids?.length) {
-      const { rows: qs } = await pool.query('SELECT * FROM questions WHERE id = ANY($1)', [t[0].question_ids]);
-      return res.json(qs);
+      const ids = t[0].question_ids;
+      const { rows: qs } = await pool.query('SELECT * FROM questions WHERE id = ANY($1)', [ids]);
+      const ordered = ids.map(id => qs.find(q => q.id === id)).filter(Boolean);
+      return res.json(ordered);
     }
-    const all = rows;
-    for (let i = all.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [all[i], all[j]] = [all[j], all[i]];
-    }
-    return res.json(all.slice(0, 20));
+    // Auto - bazadagi hamma savol id tartibida (chalkashtirilmaydi)
+    return res.json(rows);
   }
 
   res.json(rows);
