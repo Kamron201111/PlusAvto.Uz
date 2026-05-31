@@ -89,12 +89,8 @@ const HomePage: React.FC = () => {
           <Zap size={26} className="text-white" fill="white"/>
         </div>
         <div className="flex-1 text-left">
-          <p className="font-bold text-base sm:text-lg leading-tight">{lang === 'kr' ? '🔥 Марафон' : "🔥 Marafon"}</p>
-          <p className="text-xs sm:text-sm opacity-90 mt-0.5">
-            {lang === 'kr'
-              ? "Барча билетлар саволлари кетма-кет, орқага қайтиш йўқ"
-              : "Barcha biletlar savollari ketma-ket, orqaga qaytish yo'q"}
-          </p>
+          <p className="font-bold text-base sm:text-lg leading-tight">🔥 {adaptText(t('marathon'), lang)}</p>
+          <p className="text-xs sm:text-sm opacity-90 mt-0.5">{adaptText(t('marathon_desc'), lang)}</p>
         </div>
         {!canAccess && <Lock size={20} className="text-white/80"/>}
       </button>
