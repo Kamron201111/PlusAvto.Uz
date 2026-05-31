@@ -90,7 +90,6 @@ const HomePage: React.FC = () => {
         </div>
         <div className="flex-1 text-left">
           <p className="font-bold text-base sm:text-lg leading-tight">🔥 {adaptText(t('marathon'), lang)}</p>
-          <p className="text-xs sm:text-sm opacity-90 mt-0.5">{adaptText(t('marathon_desc'), lang)}</p>
         </div>
         {!canAccess && <Lock size={20} className="text-white/80"/>}
       </button>
