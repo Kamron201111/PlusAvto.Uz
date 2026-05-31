@@ -52,7 +52,7 @@ const Result: React.FC = () => {
         <div className="text-5xl sm:text-6xl font-black mb-2">{score}%</div>
         <p className="text-base sm:text-lg font-bold">
           {isMarathon
-            ? (lang === 'kr' ? '🔥 Марафон тугади!' : "🔥 Marafon tugadi!")
+            ? '🔥 ' + adaptText(t('marathon_finished'), lang)
             : adaptText(passed ? t('passed') : t('failed'), lang)}
         </p>
         {isMarathon && (
@@ -71,7 +71,7 @@ const Result: React.FC = () => {
         <div className="mb-5">
           <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
             <AlertCircle className="text-amber-500" size={20}/>
-            {lang === 'kr' ? "Тузатиш керак бўлган саволлар" : "Tuzatish kerak bo'lgan savollar"}
+            {adaptText(t('fix_questions'), lang)}
             <span className="text-sm font-normal text-slate-500">({problemQuestions.length})</span>
           </h3>
           <div className="space-y-2">
@@ -95,8 +95,8 @@ const Result: React.FC = () => {
                   <p className="text-sm font-semibold line-clamp-2">{adaptText(getQText(q), lang)}</p>
                   <p className={`text-xs mt-0.5 font-semibold ${q.isWrong ? 'text-red-500' : 'text-amber-500'}`}>
                     {q.isWrong
-                      ? (lang === 'kr' ? '✗ Хато жавоб' : '✗ Xato javob')
-                      : (lang === 'kr' ? '○ Жавоб берилмаган' : '○ Javob berilmagan')}
+                      ? '✗ ' + adaptText(t('wrong_answer'), lang)
+                      : '○ ' + adaptText(t('skipped'), lang)}
                   </p>
                 </div>
                 <ChevronRight size={18} className="text-slate-400"/>
@@ -128,8 +128,8 @@ const Result: React.FC = () => {
                 </div>
                 <span className="font-bold">
                   {selectedQ.isWrong
-                    ? (lang === 'kr' ? 'Хато жавоб' : 'Xato javob')
-                    : (lang === 'kr' ? 'Жавоб берилмаган' : 'Javob berilmagan')}
+                    ? adaptText(t('wrong_answer'), lang)
+                    : adaptText(t('skipped'), lang)}
                 </span>
               </div>
               <button onClick={() => setSelectedQ(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
