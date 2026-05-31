@@ -259,21 +259,21 @@ app.get('/api/vazifalar', authRequired, async (req, res) => {
 });
 
 app.post('/api/vazifalar', adminRequired, async (req, res) => {
-  const { name, mode, topic_ids, question_ids } = req.body;
+  const { name, mode, topic_ids, question_ids, ticket_ids } = req.body;
   const { rows: maxRow } = await pool.query('SELECT COALESCE(MAX(number), 0) + 1 AS next FROM vazifalar');
   const num = maxRow[0].next;
   const { rows } = await pool.query(
-    'INSERT INTO vazifalar (number, name, mode, topic_ids, question_ids) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [num, name || `Vazifa ${num}`, mode || 'topics', topic_ids || [], question_ids || []]
+    'INSERT INTO vazifalar (number, name, mode, topic_ids, question_ids, ticket_ids) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [num, name || `Vazifa ${num}`, mode || 'topics', topic_ids || [], question_ids || [], ticket_ids || []]
   );
   res.json(rows[0]);
 });
 
 app.put('/api/vazifalar/:id', adminRequired, async (req, res) => {
-  const { name, number, mode, topic_ids, question_ids } = req.body;
+  const { name, number, mode, topic_ids, question_ids, ticket_ids } = req.body;
   await pool.query(
-    'UPDATE vazifalar SET name = $1, number = $2, mode = $3, topic_ids = $4, question_ids = $5 WHERE id = $6',
-    [name, number, mode, topic_ids || [], question_ids || [], req.params.id]
+    'UPDATE vazifalar SET name = $1, number = $2, mode = $3, topic_ids = $4, question_ids = $5, ticket_ids = $6 WHERE id = $7',
+    [name, number, mode, topic_ids || [], question_ids || [], ticket_ids || [], req.params.id]
   );
   res.json({ ok: true });
 });
@@ -283,7 +283,7 @@ app.delete('/api/vazifalar/:id', adminRequired, async (req, res) => {
   res.json({ ok: true });
 });
 
-// Vazifa savollarini olish (mavzulardan yoki qo'lda tanlangan)
+// Vazifa savollarini olish (mavzulardan, biletdan yoki qo'lda tanlangan)
 app.get('/api/vazifalar/:id/questions', authRequired, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM vazifalar WHERE id = $1', [req.params.id]);
   if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -296,6 +296,28 @@ app.get('/api/vazifalar/:id/questions', authRequired, async (req, res) => {
   } else if (v.mode === 'topics' && v.topic_ids && v.topic_ids.length) {
     const { rows: qs } = await pool.query('SELECT * FROM questions WHERE topic_id = ANY($1)', [v.topic_ids]);
     questions = qs;
+  } else if (v.mode === 'tickets' && v.ticket_ids && v.ticket_ids.length) {
+    // Tanlangan biletlarning hamma savollarini yig'amiz
+    const { rows: tks } = await pool.query('SELECT * FROM tickets WHERE id = ANY($1)', [v.ticket_ids]);
+    const allQIds = new Set();
+    // Manual biletlardagi question_ids ni yig'amiz
+    for (const tk of tks) {
+      if (tk.mode === 'manual' && tk.question_ids && tk.question_ids.length) {
+        tk.question_ids.forEach(id => allQIds.add(id));
+      }
+    }
+    // Agar manual'lardan id chiqsa - faqat o'shalarni olamiz; bo'lmasa bo'sh
+    // Auto biletlar bo'lsa - bazadagi hamma savol qo'shiladi (bilet o'zi tanlamagani uchun)
+    const hasAuto = tks.some(t => t.mode === 'auto');
+    if (hasAuto) {
+      const { rows: allQs } = await pool.query('SELECT * FROM questions');
+      questions = allQs;
+    } else if (allQIds.size > 0) {
+      const { rows: qs } = await pool.query('SELECT * FROM questions WHERE id = ANY($1)', [Array.from(allQIds)]);
+      questions = qs;
+    } else {
+      questions = [];
+    }
   } else {
     questions = [];
   }
