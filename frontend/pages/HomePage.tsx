@@ -5,7 +5,7 @@ import { adaptText } from '../services/transliterate';
 import { settingsAPI, favoritesAPI, mistakesAPI, questionsAPI } from '../services/api';
 import {
   BookOpen, Ticket, Shuffle, Heart, XCircle, BarChart3,
-  FileCheck, AlertCircle, Lock, ListTodo,
+  FileCheck, AlertCircle, Lock, ListTodo, Zap,
 } from 'lucide-react';
 
 const HomePage: React.FC = () => {
@@ -79,6 +79,25 @@ const HomePage: React.FC = () => {
         <Card onClick={() => handlePremium(() => navigate('/quiz?mode=random'))} icon={<Shuffle size={22}/>} color="purple" label={adaptText(t('random_test'), lang)} locked={!canAccess}/>
         <Card onClick={() => navigate('/mistakes')} icon={<AlertCircle size={22}/>} color="red" label={adaptText(t('my_mistakes'), lang)}/>
       </div>
+
+      {/* Marafon - eng pastda alohida ko'rsatkichli tugma */}
+      <button
+        onClick={() => handlePremium(() => navigate('/quiz?mode=marathon'))}
+        className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 hover:from-purple-700 hover:via-pink-600 hover:to-orange-600 rounded-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 shadow-xl active:scale-[0.98] transition-all text-white"
+      >
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
+          <Zap size={26} className="text-white" fill="white"/>
+        </div>
+        <div className="flex-1 text-left">
+          <p className="font-bold text-base sm:text-lg leading-tight">{lang === 'kr' ? '🔥 Марафон' : "🔥 Marafon"}</p>
+          <p className="text-xs sm:text-sm opacity-90 mt-0.5">
+            {lang === 'kr'
+              ? "Барча билетлар саволлари кетма-кет, орқага қайтиш йўқ"
+              : "Barcha biletlar savollari ketma-ket, orqaga qaytish yo'q"}
+          </p>
+        </div>
+        {!canAccess && <Lock size={20} className="text-white/80"/>}
+      </button>
     </div>
   );
 };
