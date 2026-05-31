@@ -118,7 +118,7 @@ const Quiz: React.FC = () => {
           } else {
             qs = [];
           }
-          titleText = lang === 'kr' ? '🔥 Марафон' : "🔥 Marafon";
+          titleText = '🔥 ' + t('marathon');
         } else if (mode === 'random') {
           if (countParam) {
             qs = await questionsAPI.random(parseInt(countParam));
@@ -248,7 +248,7 @@ const Quiz: React.FC = () => {
 
         {isMarathon ? (
           <span className="text-xs sm:text-sm font-bold flex items-center gap-1 bg-gradient-to-r from-purple-600 to-orange-500 text-white px-2 py-1 rounded-lg">
-            <Zap size={14} fill="white"/> {lang === 'kr' ? 'Марафон' : 'Marafon'}
+            <Zap size={14} fill="white"/> {adaptText(t('marathon'), lang)}
           </span>
         ) : (
           <span className="text-xs sm:text-sm font-bold truncate max-w-[100px] sm:max-w-none">{adaptText(title, lang)}</span>
