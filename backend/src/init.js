@@ -52,6 +52,9 @@ export async function initDatabase() {
       created_at TIMESTAMP DEFAULT NOW()
     );
 
+    -- Eski bazaga ticket_ids ustunini qo'shish (agar yo'q bo'lsa)
+    ALTER TABLE vazifalar ADD COLUMN IF NOT EXISTS ticket_ids INTEGER[] DEFAULT '{}';
+
     CREATE TABLE IF NOT EXISTS questions (
       id SERIAL PRIMARY KEY,
       text TEXT NOT NULL,
