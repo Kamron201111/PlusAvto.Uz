@@ -30,6 +30,12 @@ const UZ = {
   interim_control: "Oraliq nazorat",
   exam_topshirish: "Imtihon topshirish",
   vazifa_topshirish: "Vazifa topshirish",
+  marathon: "Marafon",
+  marathon_desc: "Barcha biletlar savollari ketma-ket, orqaga qaytish yo'q",
+  marathon_finished: "Marafon tugadi!",
+  fix_questions: "Tuzatish kerak bo'lgan savollar",
+  wrong_answer: "Xato javob",
+  skipped: "Javob berilmagan",
 
   login_title: "Tizimga kirish",
   phone: "Telefon raqam",
