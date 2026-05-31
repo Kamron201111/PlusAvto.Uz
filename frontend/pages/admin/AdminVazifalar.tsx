@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { vazifalarAPI, topicsAPI, questionsAPI } from '../../services/api';
-import { Plus, Edit2, Trash2, X, Save, ListTodo, Search, Loader2, BookOpen } from 'lucide-react';
+import { vazifalarAPI, topicsAPI, questionsAPI, ticketsAPI } from '../../services/api';
+import { Plus, Edit2, Trash2, X, Save, ListTodo, Search, Loader2, BookOpen, Ticket } from 'lucide-react';
 
 const AdminVazifalar: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [allTopics, setAllTopics] = useState<any[]>([]);
+  const [allTickets, setAllTickets] = useState<any[]>([]);
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
   const [search, setSearch] = useState('');
 
   const load = async () => {
-    const [v, t, q] = await Promise.all([vazifalarAPI.list(), topicsAPI.list(), questionsAPI.list()]);
-    setItems(v); setAllTopics(t); setAllQuestions(q); setLoading(false);
+    const [v, t, tk, q] = await Promise.all([
+      vazifalarAPI.list(), topicsAPI.list(), ticketsAPI.list(), questionsAPI.list()
+    ]);
+    setItems(v); setAllTopics(t); setAllTickets(tk); setAllQuestions(q); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    const v = await vazifalarAPI.create({ mode: 'topics', topic_ids: [], question_ids: [] });
-    load(); setEditing({...v, topic_ids: [], question_ids: []});
+    const v = await vazifalarAPI.create({ mode: 'topics', topic_ids: [], question_ids: [], ticket_ids: [] });
+    load();
+    setEditing({...v, topic_ids: [], question_ids: [], ticket_ids: []});
   };
 
   const handleSave = async () => {
@@ -29,6 +33,7 @@ const AdminVazifalar: React.FC = () => {
       mode: editing.mode,
       topic_ids: editing.topic_ids || [],
       question_ids: editing.question_ids || [],
+      ticket_ids: editing.ticket_ids || [],
     });
     setEditing(null); load();
   };
@@ -44,6 +49,12 @@ const AdminVazifalar: React.FC = () => {
     setEditing({...editing, topic_ids: ids.includes(id) ? ids.filter((x: number) => x !== id) : [...ids, id]});
   };
 
+  const toggleTicket = (id: number) => {
+    if (!editing) return;
+    const ids = editing.ticket_ids || [];
+    setEditing({...editing, ticket_ids: ids.includes(id) ? ids.filter((x: number) => x !== id) : [...ids, id]});
+  };
+
   const toggleQ = (qId: number) => {
     if (!editing) return;
     const ids = editing.question_ids || [];
@@ -55,6 +66,20 @@ const AdminVazifalar: React.FC = () => {
   // Hisoblash - tanlangan mavzulardagi jami savollar
   const calcTotalFromTopics = (topicIds: number[]) => {
     return allQuestions.filter(q => topicIds.includes(q.topic_id)).length;
+  };
+
+  // Hisoblash - tanlangan biletlardagi jami savollar
+  const calcTotalFromTickets = (ticketIds: number[]) => {
+    let total = 0;
+    let hasAuto = false;
+    ticketIds.forEach(id => {
+      const t = allTickets.find(x => x.id === id);
+      if (!t) return;
+      if (t.mode === 'auto') hasAuto = true;
+      else if (t.question_ids) total += t.question_ids.length;
+    });
+    if (hasAuto) return allQuestions.length; // auto biletlar = hamma savol
+    return total;
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-sky-500" size={32}/></div>;
@@ -70,8 +95,9 @@ const AdminVazifalar: React.FC = () => {
 
       <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl">
         <p className="text-xs text-blue-700 dark:text-blue-400">
-          💡 <strong>Vazifa yaratishning 2 usuli:</strong> 1) <strong>Mavzulardan tanlash</strong> — bir nechta mavzu tanlanadi, ulardagi BARCHA savollar avtomatik aralashtirilib beriladi.
-          2) <strong>Qo'lda tanlash</strong> — savollarni bittadan tanlaysiz.
+          💡 <strong>Vazifa yaratishning 3 usuli:</strong> 1) <strong>Mavzulardan</strong> — bir nechta mavzu tanlanadi, ulardagi BARCHA savollar avtomatik aralashtirilib beriladi.
+          2) <strong>Biletlardan</strong> — bir nechta bilet tanlanadi, ulardagi savollar yig'iladi va aralashtirilib beriladi.
+          3) <strong>Qo'lda</strong> — savollarni bittadan tanlaysiz.
         </p>
       </div>
 
@@ -88,12 +114,17 @@ const AdminVazifalar: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm sm:text-base">{v.name}</p>
                 <p className="text-xs text-slate-500">
-                  {v.mode === 'topics'
-                    ? `${(v.topic_ids || []).length} ta mavzu, ${calcTotalFromTopics(v.topic_ids || [])} ta savol`
-                    : `${(v.question_ids || []).length} ta qo'lda tanlangan`}
+                  {v.mode === 'topics' && `${(v.topic_ids || []).length} ta mavzu, ${calcTotalFromTopics(v.topic_ids || [])} ta savol`}
+                  {v.mode === 'tickets' && `${(v.ticket_ids || []).length} ta bilet, ${calcTotalFromTickets(v.ticket_ids || [])} ta savol`}
+                  {v.mode === 'manual' && `${(v.question_ids || []).length} ta qo'lda tanlangan`}
                 </p>
               </div>
-              <button onClick={() => setEditing({...v, topic_ids: v.topic_ids || [], question_ids: v.question_ids || []})} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sky-500"><Edit2 size={16}/></button>
+              <button onClick={() => setEditing({
+                ...v,
+                topic_ids: v.topic_ids || [],
+                question_ids: v.question_ids || [],
+                ticket_ids: v.ticket_ids || [],
+              })} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sky-500"><Edit2 size={16}/></button>
               <button onClick={() => handleDelete(v.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-red-500"><Trash2 size={16}/></button>
             </div>
           ))}
@@ -125,14 +156,18 @@ const AdminVazifalar: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Savollar manbasi</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button onClick={() => setEditing({...editing, mode: 'topics'})}
-                    className={`py-3 rounded-xl font-semibold ${editing.mode === 'topics' ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                    Mavzulardan tanlash
+                    className={`py-3 rounded-xl font-semibold text-sm ${editing.mode === 'topics' ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    Mavzulardan
+                  </button>
+                  <button onClick={() => setEditing({...editing, mode: 'tickets'})}
+                    className={`py-3 rounded-xl font-semibold text-sm ${editing.mode === 'tickets' ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    Biletlardan
                   </button>
                   <button onClick={() => setEditing({...editing, mode: 'manual'})}
-                    className={`py-3 rounded-xl font-semibold ${editing.mode === 'manual' ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                    Qo'lda tanlash
+                    className={`py-3 rounded-xl font-semibold text-sm ${editing.mode === 'manual' ? 'bg-sky-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    Qo'lda
                   </button>
                 </div>
               </div>
@@ -153,6 +188,31 @@ const AdminVazifalar: React.FC = () => {
                             <input type="checkbox" checked={selected} readOnly/>
                             <BookOpen size={14} className="text-sky-500"/>
                             <span className="text-sm flex-1"><strong>{topic.number}.</strong> {topic.name}</span>
+                            <span className="text-xs text-slate-500">{count} savol</span>
+                          </button>
+                        );
+                      })
+                    }
+                  </div>
+                </div>
+              )}
+
+              {editing.mode === 'tickets' && (
+                <div>
+                  <label className="block text-sm font-semibold mb-2">
+                    Biletlar ({(editing.ticket_ids || []).length} ta tanlangan, jami: <span className="text-sky-500 font-bold">{calcTotalFromTickets(editing.ticket_ids || [])} ta savol</span>)
+                  </label>
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl max-h-60 overflow-y-auto">
+                    {allTickets.length === 0 ? <p className="p-4 text-center text-sm text-slate-500">Biletlar yo'q</p> :
+                      allTickets.map(ticket => {
+                        const selected = (editing.ticket_ids || []).includes(ticket.id);
+                        const count = ticket.mode === 'auto' ? allQuestions.length : (ticket.question_ids?.length || 0);
+                        return (
+                          <button key={ticket.id} onClick={() => toggleTicket(ticket.id)}
+                            className={`w-full text-left p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 flex items-center gap-2 ${selected ? 'bg-sky-50 dark:bg-sky-500/10' : ''}`}>
+                            <input type="checkbox" checked={selected} readOnly/>
+                            <Ticket size={14} className="text-blue-500"/>
+                            <span className="text-sm flex-1"><strong>{ticket.number}.</strong> {ticket.name}</span>
                             <span className="text-xs text-slate-500">{count} savol</span>
                           </button>
                         );
