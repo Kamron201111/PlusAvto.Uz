@@ -5,7 +5,7 @@ import { adaptText } from '../services/transliterate';
 import {
   questionsAPI, mistakesAPI, favoritesAPI, topicsAPI, ticketsAPI, interimsAPI, vazifalarAPI,
 } from '../services/api';
-import { Bookmark, X, ChevronLeft, ChevronRight, Lightbulb, Loader2 } from 'lucide-react';
+import { Bookmark, X, ChevronLeft, ChevronRight, Lightbulb, Loader2, Zap } from 'lucide-react';
 import LangToggle from '../components/LangToggle';
 
 const Quiz: React.FC = () => {
@@ -22,6 +22,7 @@ const Quiz: React.FC = () => {
   const examType = params.get('examType');
 
   const isAdmin = user?.role === 'admin';
+  const isMarathon = mode === 'marathon';
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,17 +72,58 @@ const Quiz: React.FC = () => {
           qs = await favoritesAPI.list();
           titleText = t('my_favorite');
         } else if (mode === 'final') {
-          // Final exam — count param bo'lsa shuncha (20/50), bo'lmasa default 20
           const cnt = countParam ? parseInt(countParam) : 20;
           qs = await questionsAPI.random(cnt);
           titleText = t('exam_topshirish');
+        } else if (mode === 'marathon') {
+          // MARAFON - hamma biletlar savollarini ketma-ket yig'amiz
+          const allTickets = await ticketsAPI.list();
+          const collectedIds: number[] = [];
+          let hasAuto = false;
+
+          // Biletlar tartibida (number bo'yicha) — manual savol id larini yig'amiz
+          const sortedTickets = [...allTickets].sort((a, b) => a.number - b.number);
+          for (const tk of sortedTickets) {
+            if (tk.mode === 'auto') {
+              hasAuto = true;
+            } else if (tk.question_ids && tk.question_ids.length) {
+              for (const qid of tk.question_ids) {
+                if (!collectedIds.includes(qid)) collectedIds.push(qid);
+              }
+            }
+          }
+
+          // Agar auto bilet bo'lsa - bazadagi hamma savol qo'shiladi
+          if (hasAuto) {
+            const allQs = await questionsAPI.list();
+            // Avval manualdan to'plangan tartibda, qolganlari id bo'yicha
+            const ordered: any[] = [];
+            for (const id of collectedIds) {
+              const q = allQs.find((x: any) => x.id === id);
+              if (q) ordered.push(q);
+            }
+            // Qolganlari (manualda yo'q bo'lganlari)
+            for (const q of allQs) {
+              if (!collectedIds.includes(q.id)) ordered.push(q);
+            }
+            qs = ordered;
+          } else if (collectedIds.length) {
+            const allQs = await questionsAPI.list();
+            const ordered: any[] = [];
+            for (const id of collectedIds) {
+              const q = allQs.find((x: any) => x.id === id);
+              if (q) ordered.push(q);
+            }
+            qs = ordered;
+          } else {
+            qs = [];
+          }
+          titleText = lang === 'kr' ? '🔥 Марафон' : "🔥 Marafon";
         } else if (mode === 'random') {
-          // RANDOM — count bo'lmasa bazadagi HAMMA savol, chalkashtirilgan holda
           if (countParam) {
             qs = await questionsAPI.random(parseInt(countParam));
           } else {
             qs = await questionsAPI.list();
-            // Hammasini chalkashtiramiz
             for (let i = qs.length - 1; i > 0; i--) {
               const j = Math.floor(Math.random() * (i + 1));
               [qs[i], qs[j]] = [qs[j], qs[i]];
@@ -113,7 +155,6 @@ const Quiz: React.FC = () => {
 
   useEffect(() => {
     setShowExplain(false);
-    // Check favorite
     if (!currentQ) return;
     favoritesAPI.list().then(favs => {
       setFavStatus(favs.some((f: any) => f.id === currentQ.id));
@@ -123,7 +164,6 @@ const Quiz: React.FC = () => {
   const options = useMemo(() => {
     if (!currentQ) return [];
     const opts = currentQ.options || {};
-    // Til bo'yicha alohida options bo'lsa
     const optsKr = currentQ.options_kr;
     const source = (lang === 'kr' && optsKr) ? optsKr : opts;
     const result: { key: string; value: string }[] = [];
@@ -158,12 +198,17 @@ const Quiz: React.FC = () => {
     const correct = questions.filter(q => answers[q.id] === q.correct_answer).length;
     const wrong = questions.filter(q => answers[q.id] && answers[q.id] !== q.correct_answer).length;
     const score = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
-    navigate('/result', { state: { correct, wrong, total: questions.length, score, passed: score >= 80, questions, answers } });
+    navigate('/result', {
+      state: {
+        correct, wrong, total: questions.length, score,
+        passed: score >= 80, questions, answers,
+        isMarathon, // Result sahifasi marafon ekanligini bilsin
+      }
+    });
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  // Savol matnini lang bo'yicha olish — agar baza alohida saqlangan bo'lsa
   const getQText = (q: any) => (lang === 'kr' && q.text_kr) ? q.text_kr : q.text;
   const getQExplanation = (q: any) => (lang === 'kr' && q.explanation_kr) ? q.explanation_kr : q.explanation;
 
@@ -201,7 +246,20 @@ const Quiz: React.FC = () => {
           className="px-2 sm:px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold"
         >{adaptText(t('finish_test'), lang)}</button>
 
-        <span className="text-xs sm:text-sm font-bold truncate max-w-[100px] sm:max-w-none">{adaptText(title, lang)}</span>
+        {isMarathon ? (
+          <span className="text-xs sm:text-sm font-bold flex items-center gap-1 bg-gradient-to-r from-purple-600 to-orange-500 text-white px-2 py-1 rounded-lg">
+            <Zap size={14} fill="white"/> {lang === 'kr' ? 'Марафон' : 'Marafon'}
+          </span>
+        ) : (
+          <span className="text-xs sm:text-sm font-bold truncate max-w-[100px] sm:max-w-none">{adaptText(title, lang)}</span>
+        )}
+
+        {/* Marafon - umumiy progress ko'rsatiladi */}
+        {isMarathon && (
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            {currentIdx + 1} / {questions.length}
+          </span>
+        )}
 
         {isExamMode && (
           <div className="px-2 py-1 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded-lg text-xs font-bold">
@@ -215,20 +273,23 @@ const Quiz: React.FC = () => {
           <Bookmark size={18} fill={favStatus ? 'currentColor' : 'none'}/>
         </button>
 
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto scroll-hidden">
-          {questions.map((q, i) => {
-            const ans = answers[q.id];
-            let bg = 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
-            if (ans) bg = ans === q.correct_answer ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white';
-            if (i === currentIdx) bg = 'bg-sky-500 text-white ring-2 ring-sky-300';
-            return (
-              <button key={q.id} onClick={() => setCurrentIdx(i)}
-                className={`min-w-[26px] h-6 sm:min-w-[28px] sm:h-7 rounded text-xs font-bold flex-shrink-0 ${bg}`}>
-                {i + 1}
-              </button>
-            );
-          })}
-        </div>
+        {/* Marafon emas bo'lsa - savol raqamlari yuqorida (orqaga qaytish uchun) */}
+        {!isMarathon && (
+          <div className="flex-1 flex items-center gap-1 overflow-x-auto scroll-hidden">
+            {questions.map((q, i) => {
+              const ans = answers[q.id];
+              let bg = 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+              if (ans) bg = ans === q.correct_answer ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white';
+              if (i === currentIdx) bg = 'bg-sky-500 text-white ring-2 ring-sky-300';
+              return (
+                <button key={q.id} onClick={() => setCurrentIdx(i)}
+                  className={`min-w-[26px] h-6 sm:min-w-[28px] sm:h-7 rounded text-xs font-bold flex-shrink-0 ${bg}`}>
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-auto p-2 sm:p-4">
@@ -282,10 +343,15 @@ const Quiz: React.FC = () => {
           </div>
 
           <div className="mt-4 sm:mt-5 flex items-center justify-between gap-2">
-            <button onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}
-              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold flex items-center gap-1 disabled:opacity-40 text-sm">
-              <ChevronLeft size={16}/> <span className="hidden sm:inline">{adaptText(t('previous'), lang)}</span>
-            </button>
+            {/* Marafon - orqaga qaytish tugmasi yo'q */}
+            {isMarathon ? (
+              <div /> // bo'sh joy - faqat keyingi tugma o'ng tomonda
+            ) : (
+              <button onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}
+                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold flex items-center gap-1 disabled:opacity-40 text-sm">
+                <ChevronLeft size={16}/> <span className="hidden sm:inline">{adaptText(t('previous'), lang)}</span>
+              </button>
+            )}
 
             {currentIdx === questions.length - 1 ? (
               <button onClick={finishTest} className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm">
@@ -293,7 +359,11 @@ const Quiz: React.FC = () => {
               </button>
             ) : (
               <button onClick={() => setCurrentIdx(p => Math.min(questions.length - 1, p + 1))}
-                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold flex items-center gap-1 text-sm">
+                className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-semibold flex items-center gap-1 text-sm text-white ${
+                  isMarathon
+                    ? 'bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600'
+                    : 'bg-sky-500 hover:bg-sky-600'
+                }`}>
                 <span className="hidden sm:inline">{adaptText(t('next'), lang)}</span> <ChevronRight size={16}/>
               </button>
             )}
