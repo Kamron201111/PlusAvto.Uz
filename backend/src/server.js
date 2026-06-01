@@ -381,7 +381,7 @@ app.get('/api/questions/random', authRequired, async (req, res) => {
 
 app.post('/api/questions', adminRequired, async (req, res) => {
   try {
-    const { text, options, correct_answer, image, explanation, topic_id, text_kr, options_kr, explanation_kr } = req.body;
+    const { text, options, correct_answer, image, explanation, topic_id, text_kr, options_kr, explanation_kr, ticket_id } = req.body;
     if (!text || !options || !correct_answer) return res.status(400).json({ error: 'Maydonlar to\'liq emas' });
 
     const { rows } = await pool.query(
@@ -390,6 +390,23 @@ app.post('/api/questions', adminRequired, async (req, res) => {
       [text, text_kr || null, JSON.stringify(options), options_kr ? JSON.stringify(options_kr) : null,
        correct_answer, image || null, explanation || null, explanation_kr || null, topic_id || null]
     );
+
+    // Agar bilet tanlangan bo'lsa - savolni biletga qo'shamiz
+    if (ticket_id) {
+      const { rows: tk } = await pool.query('SELECT * FROM tickets WHERE id = $1', [ticket_id]);
+      if (tk.length > 0) {
+        const currentIds = tk[0].question_ids || [];
+        if (!currentIds.includes(rows[0].id)) {
+          const newIds = [...currentIds, rows[0].id];
+          // Bilet rejimini ham manual ga o'zgartiramiz (qo'lda tanlangan)
+          await pool.query(
+            'UPDATE tickets SET question_ids = $1, mode = $2 WHERE id = $3',
+            [newIds, 'manual', ticket_id]
+          );
+        }
+      }
+    }
+
     res.json(rows[0]);
   } catch (e) {
     console.error('add question:', e);
