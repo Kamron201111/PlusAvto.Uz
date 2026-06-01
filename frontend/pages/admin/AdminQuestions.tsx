@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { questionsAPI, topicsAPI } from '../../services/api';
-import { Plus, Edit2, Trash2, X, Save, Upload, FileJson, Search, HelpCircle, Loader2 } from 'lucide-react';
+import { questionsAPI, topicsAPI, ticketsAPI } from '../../services/api';
+import { Plus, Edit2, Trash2, X, Save, Upload, FileJson, Search, HelpCircle, Loader2, Ticket } from 'lucide-react';
 
 const AdminQuestions: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
   const [showJson, setShowJson] = useState(false);
@@ -13,15 +14,15 @@ const AdminQuestions: React.FC = () => {
   const [filterTopic, setFilterTopic] = useState<string>('all');
 
   const load = async () => {
-    const [q, t] = await Promise.all([questionsAPI.list(), topicsAPI.list()]);
-    setItems(q); setTopics(t); setLoading(false);
+    const [q, t, tk] = await Promise.all([questionsAPI.list(), topicsAPI.list(), ticketsAPI.list()]);
+    setItems(q); setTopics(t); setTickets(tk); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const blank = () => ({
     text: '', options: { f1: '', f2: '', f3: '', f4: '' },
     correct_answer: 'f1', explanation: '', topic_id: topics[0]?.id || null,
-    image: null,
+    image: null, ticket_id: null,
   });
 
   const handleSave = async () => {
@@ -29,7 +30,7 @@ const AdminQuestions: React.FC = () => {
     const ops = editing.options || {};
     if (!ops.f1?.trim() || !ops.f2?.trim()) { alert('Kamida 2 ta variant'); return; }
     try {
-      const data = {
+      const data: any = {
         text: editing.text,
         options: editing.options,
         correct_answer: editing.correct_answer,
@@ -37,8 +38,13 @@ const AdminQuestions: React.FC = () => {
         explanation: editing.explanation,
         topic_id: editing.topic_id,
       };
-      if (editing.id) await questionsAPI.update(editing.id, data);
-      else await questionsAPI.create(data);
+      if (editing.id) {
+        await questionsAPI.update(editing.id, data);
+      } else {
+        // Faqat yangi savol qo'shganda bilet'ga ham qo'shamiz
+        data.ticket_id = editing.ticket_id || null;
+        await questionsAPI.create(data);
+      }
       setEditing(null); load();
     } catch (e: any) { alert(e.response?.data?.error || "Xato"); }
   };
@@ -141,13 +147,40 @@ const AdminQuestions: React.FC = () => {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-semibold mb-1">Mavzu</label>
+                <label className="block text-sm font-semibold mb-1">Mavzu *</label>
                 <select value={editing.topic_id || ''} onChange={e => setEditing({...editing, topic_id: e.target.value ? parseInt(e.target.value) : null})}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
                   <option value="">-- Mavzusiz --</option>
                   {topics.map(t => <option key={t.id} value={t.id}>{t.number}. {t.name}</option>)}
                 </select>
               </div>
+
+              {/* Bilet tanlash - faqat yangi savol qo'shganda (ixtiyoriy) */}
+              {!editing.id && (
+                <div>
+                  <label className="block text-sm font-semibold mb-1 flex items-center gap-1">
+                    <Ticket size={14} className="text-blue-500"/>
+                    Bilet (ixtiyoriy)
+                  </label>
+                  <select value={editing.ticket_id || ''} onChange={e => setEditing({...editing, ticket_id: e.target.value ? parseInt(e.target.value) : null})}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none">
+                    <option value="">-- Bilet tanlamasdan qo'shish --</option>
+                    {tickets.map(tk => {
+                      const count = tk.question_ids?.length || 0;
+                      return (
+                        <option key={tk.id} value={tk.id}>
+                          {tk.number}. {tk.name} ({count} ta savol)
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {editing.ticket_id && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      ℹ️ Savol shu biletga qo'shiladi
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold mb-1">Savol matni *</label>
