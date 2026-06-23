@@ -298,15 +298,16 @@ const Quiz: React.FC = () => {
             <h2 className="font-bold text-sm sm:text-base md:text-lg leading-snug">{adaptText(getQText(currentQ), lang)}</h2>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          {/* Rasm o'ngda, variantlar chapda. flex - har ustun o'z balandligida, bo'sh joy chiqmaydi */}
+          <div className="flex flex-col lg:flex-row lg:flex-row-reverse lg:items-start gap-3 sm:gap-4">
             {currentQ.image && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl overflow-hidden">
+              <div className="lg:w-1/2 lg:flex-shrink-0 bg-white dark:bg-slate-900 rounded-xl overflow-hidden">
                 <img src={currentQ.image} alt="" onClick={() => setZoomImage(currentQ.image)}
                   className="w-full max-h-[400px] object-contain cursor-zoom-in"/>
               </div>
             )}
 
-            <div className={`space-y-2 ${!currentQ.image ? 'lg:col-span-2' : ''}`}>
+            <div className={`space-y-2 ${currentQ.image ? 'lg:w-1/2' : 'w-full'}`}>
               {options.map((opt, i) => {
                 const isSelected = userAnswer === opt.key;
                 const isCorrectOpt = opt.key === currentQ.correct_answer;
@@ -328,12 +329,12 @@ const Quiz: React.FC = () => {
               {isAnswered && getQExplanation(currentQ) && (
                 <>
                   <button onClick={() => setShowExplain(!showExplain)}
-                    className="w-full p-3 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 border border-amber-300 dark:border-amber-500/30 rounded-xl text-left text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    className="w-full p-3 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 border border-amber-300 dark:border-amber-500/30 rounded-xl text-left text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
                     <Lightbulb size={16}/>
                     {showExplain ? adaptText(t('hide_explanation'), lang) : adaptText(t('view_explanation'), lang)}
                   </button>
                   {showExplain && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl text-sm leading-relaxed">
+                    <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-950 border-2 border-amber-300 dark:border-amber-600 rounded-xl text-sm leading-relaxed text-slate-800 dark:text-amber-50">
                       {adaptText(getQExplanation(currentQ), lang)}
                     </div>
                   )}
@@ -348,7 +349,7 @@ const Quiz: React.FC = () => {
               <div /> // bo'sh joy - faqat keyingi tugma o'ng tomonda
             ) : (
               <button onClick={() => setCurrentIdx(p => Math.max(0, p - 1))} disabled={currentIdx === 0}
-                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold flex items-center gap-1 disabled:opacity-40 text-sm">
+                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-200 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white rounded-xl font-semibold flex items-center gap-1 disabled:opacity-30 hover:bg-slate-300 dark:hover:bg-slate-600 text-sm">
                 <ChevronLeft size={16}/> <span className="hidden sm:inline">{adaptText(t('previous'), lang)}</span>
               </button>
             )}
