@@ -5,7 +5,7 @@ import { adaptText } from '../services/transliterate';
 import {
   questionsAPI, mistakesAPI, favoritesAPI, topicsAPI, ticketsAPI, interimsAPI, vazifalarAPI,
 } from '../services/api';
-import { Bookmark, X, ChevronLeft, ChevronRight, Lightbulb, Loader2, Zap } from 'lucide-react';
+import { Bookmark, X, ChevronLeft, ChevronRight, Lightbulb, Loader2, Zap, FastForward } from 'lucide-react';
 import LangToggle from '../components/LangToggle';
 
 const Quiz: React.FC = () => {
@@ -29,6 +29,9 @@ const Quiz: React.FC = () => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [showExplain, setShowExplain] = useState(false);
+  // Avtomatik keyingi savolga o'tish (sozlama localStorage'da saqlanadi)
+  const [autoNext, setAutoNext] = useState(() => localStorage.getItem('pa_autonext') !== 'off');
+  const autoTimerRef = React.useRef<any>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [favStatus, setFavStatus] = useState(false);
   const [title, setTitle] = useState('');
@@ -177,6 +180,15 @@ const Quiz: React.FC = () => {
   const handleAnswer = async (optionKey: string) => {
     if (!currentQ || answers[currentQ.id]) return;
     setAnswers(prev => ({ ...prev, [currentQ.id]: optionKey }));
+
+    // Avtomatik keyingi savolga o'tish - 1.5 soniyadan keyin
+    if (autoNext) {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = setTimeout(() => {
+        setCurrentIdx(prev => (prev < questions.length - 1 ? prev + 1 : prev));
+      }, 1500);
+    }
+
     try {
       if (optionKey !== currentQ.correct_answer) {
         await mistakesAPI.add(currentQ.id);
@@ -185,6 +197,20 @@ const Quiz: React.FC = () => {
       }
     } catch (e) { console.error(e); }
   };
+
+  // Sozlamani saqlash + o'chirilganda taymerni bekor qilish
+  useEffect(() => {
+    localStorage.setItem('pa_autonext', autoNext ? 'on' : 'off');
+    if (!autoNext && autoTimerRef.current) {
+      clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = null;
+    }
+  }, [autoNext]);
+
+  // Sahifadan chiqilganda taymerni tozalash
+  useEffect(() => {
+    return () => { if (autoTimerRef.current) clearTimeout(autoTimerRef.current); };
+  }, []);
 
   const toggleFav = async () => {
     if (!currentQ) return;
@@ -269,6 +295,20 @@ const Quiz: React.FC = () => {
 
         <LangToggle />
 
+        {/* Avtomatik keyingiga o'tish - yoqish/o'chirish */}
+        <button
+          onClick={() => setAutoNext(!autoNext)}
+          title={autoNext ? "Avtomatik o'tish YOQILGAN" : "Avtomatik o'tish O'CHIQ"}
+          className={`px-2 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+            autoNext
+              ? 'bg-emerald-500 text-white'
+              : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <FastForward size={14}/>
+          <span className="hidden sm:inline">{autoNext ? 'Auto' : 'Auto'}</span>
+        </button>
+
         <button onClick={toggleFav} className={`p-1.5 rounded-lg ${favStatus ? 'text-amber-500' : 'text-slate-400'}`}>
           <Bookmark size={18} fill={favStatus ? 'currentColor' : 'none'}/>
         </button>
@@ -328,7 +368,11 @@ const Quiz: React.FC = () => {
 
               {isAnswered && getQExplanation(currentQ) && (
                 <>
-                  <button onClick={() => setShowExplain(!showExplain)}
+                  <button onClick={() => {
+                      // Izoh ochilsa - avtomatik o'tishni to'xtatamiz, o'qishga ulgursin
+                      if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
+                      setShowExplain(!showExplain);
+                    }}
                     className="w-full p-3 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 border border-amber-300 dark:border-amber-500/30 rounded-xl text-left text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
                     <Lightbulb size={16}/>
                     {showExplain ? adaptText(t('hide_explanation'), lang) : adaptText(t('view_explanation'), lang)}
