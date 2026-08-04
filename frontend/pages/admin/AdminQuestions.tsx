@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { questionsAPI, topicsAPI, ticketsAPI } from '../../services/api';
-import { Plus, Edit2, Trash2, X, Save, Upload, FileJson, Search, HelpCircle, Loader2, Ticket } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Upload, FileJson, Search, HelpCircle, Loader2, Ticket, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const AdminQuestions: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -12,6 +12,8 @@ const AdminQuestions: React.FC = () => {
   const [jsonText, setJsonText] = useState('');
   const [search, setSearch] = useState('');
   const [filterTopic, setFilterTopic] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(50);
 
   const load = async () => {
     const [q, t, tk] = await Promise.all([questionsAPI.list(), topicsAPI.list(), ticketsAPI.list()]);
@@ -79,6 +81,20 @@ const AdminQuestions: React.FC = () => {
     return true;
   });
 
+  // Sahifalash hisoblari
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * perPage;
+  const pageItems = filtered.slice(startIdx, startIdx + perPage);
+
+  // Qidiruv/filtr o'zgarsa - 1-sahifaga qaytamiz
+  useEffect(() => { setPage(1); }, [search, filterTopic, perPage]);
+
+  const goPage = (p: number) => {
+    setPage(Math.min(Math.max(1, p), totalPages));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-sky-500" size={32}/></div>;
 
   return (
@@ -114,28 +130,84 @@ const AdminQuestions: React.FC = () => {
           <p>{items.length === 0 ? "Savollar yo'q" : "Topilmadi"}</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.slice(0, 100).map((q, i) => {
-            const topic = topics.find(t => t.id === q.topic_id);
-            return (
-              <div key={q.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-start gap-3">
-                <span className="w-7 h-7 bg-sky-500/20 text-sky-500 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">{i+1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium line-clamp-2">{q.text}</p>
-                  <div className="flex flex-wrap gap-2 mt-1 text-xs">
-                    {topic && <span className="px-2 py-0.5 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded">{topic.name}</span>}
-                    {q.image && <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded">🖼</span>}
-                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded">{q.correct_answer?.toUpperCase()}</span>
+        <>
+          {/* Yuqori info paneli */}
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <p className="text-sm text-slate-500">
+              <strong className="text-slate-800 dark:text-slate-200">{startIdx + 1}–{Math.min(startIdx + perPage, filtered.length)}</strong>
+              {' '}/ {filtered.length} ta savol
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Sahifada:</span>
+              <select value={perPage} onChange={e => setPerPage(parseInt(e.target.value))}
+                className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-sm">
+                {[25, 50, 100, 200, 500].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {pageItems.map((q, i) => {
+              const topic = topics.find(t => t.id === q.topic_id);
+              return (
+                <div key={q.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-start gap-3">
+                  <span className="w-8 h-7 bg-sky-500/20 text-sky-500 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">{startIdx + i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium line-clamp-2">{q.text}</p>
+                    <div className="flex flex-wrap gap-2 mt-1 text-xs">
+                      {topic && <span className="px-2 py-0.5 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded">{topic.name}</span>}
+                      {q.image && <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded">🖼</span>}
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded">{q.correct_answer?.toUpperCase()}</span>
+                    </div>
                   </div>
+                  <button onClick={() => setEditing({...q, options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options})}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sky-500"><Edit2 size={16}/></button>
+                  <button onClick={() => handleDelete(q.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-red-500"><Trash2 size={16}/></button>
                 </div>
-                <button onClick={() => setEditing({...q, options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options})}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-sky-500"><Edit2 size={16}/></button>
-                <button onClick={() => handleDelete(q.id)} className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-red-500"><Trash2 size={16}/></button>
-              </div>
-            );
-          })}
-          {filtered.length > 100 && <p className="text-center text-sm text-slate-500 py-3">{filtered.length} dan dastlabki 100 ta</p>}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Sahifalash navigatsiyasi */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-center gap-1.5 flex-wrap">
+              <button onClick={() => goPage(1)} disabled={safePage === 1}
+                className="px-2.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <ChevronsLeft size={16}/>
+              </button>
+              <button onClick={() => goPage(safePage - 1)} disabled={safePage === 1}
+                className="px-2.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <ChevronLeft size={16}/>
+              </button>
+
+              {/* Sahifa raqamlari - joriy atrofidagi 5 ta */}
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+                .map((p, idx, arr) => (
+                  <React.Fragment key={p}>
+                    {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-slate-400">…</span>}
+                    <button onClick={() => goPage(p)}
+                      className={`min-w-[38px] px-2 py-2 rounded-lg font-semibold text-sm ${
+                        p === safePage
+                          ? 'bg-sky-500 text-white'
+                          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}>
+                      {p}
+                    </button>
+                  </React.Fragment>
+                ))}
+
+              <button onClick={() => goPage(safePage + 1)} disabled={safePage === totalPages}
+                className="px-2.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <ChevronRight size={16}/>
+              </button>
+              <button onClick={() => goPage(totalPages)} disabled={safePage === totalPages}
+                className="px-2.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <ChevronsRight size={16}/>
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {editing && (
